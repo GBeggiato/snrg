@@ -1,116 +1,14 @@
-use std::{ops::Neg, time::{SystemTime, UNIX_EPOCH}};
 
-const KX: u32 = 123456789;
-const KY: u32 = 362436069;
-const KZ: u32 = 521288629;
-const KW: u32 = 88675123;
-
-/// Simple Random Number Generator
-///
-/// I can't find the StackOverflow post I copied this from
-/// but I still want to express my gratitude for one of the
-/// best answers on that website
-pub struct Rand {
-    x: u32,
-    y: u32,
-    z: u32,
-    w: u32,
-}
-
-impl Rand {
-    pub const fn new(seed: u32) -> Self {
-        Self {
-            x: KX ^ seed,
-            y: KY ^ seed,
-            z: KZ,
-            w: KW,
-        }
-    }
-
-    /// seed is picked feom SystemTime
-    pub fn with_random_seed() -> Self {
-        let seed = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .subsec_nanos();
-        Self::new(seed)
-    }
-
-    // Xorshift 128, taken from German Wikipedia
-    pub const fn rand(&mut self) -> u32 {
-        let t = self.x ^ self.x.wrapping_shl(11);
-        self.x = self.y;
-        self.y = self.z;
-        self.z = self.w;
-        self.w ^= self.w.wrapping_shr(19) ^ t ^ t.wrapping_shr(8);
-        self.w
-    }
-
-    /// rand f64 in [0, 1]
-    /// aka: sampling from the Uniform distribution
-    pub fn rand_uniform(&mut self) -> f64 {
-        (self.rand() as f64) / (<u32>::MAX as f64)
-    }
-
-    pub const fn shuffle<T>(&mut self, a: &mut [T]) {
-        if a.is_empty() {
-            return;
-        }
-        let mut i = a.len() - 1;
-        while i > 0 {
-            let j = (self.rand() as usize) % (i + 1);
-            a.swap(i, j);
-            i -= 1;
-        }
-    }
-
-    pub const fn rand_in_range(&mut self, low: i32, high: i32) -> i32 {
-        let m = (high - low + 1) as u32;
-        low + (self.rand() % m) as i32
-    }
-
-    pub fn normal_standard(&mut self) -> f64 {
-        let mut sign;
-        let mut u;
-        let mut i;
-        let mut j;
-        let mut x;
-        let mut y;
-        loop {
-            u = self.rand() / 2;
-            i = (u & 0x0000007F) as usize;
-            sign = u & 0x00000080;
-            j = u>>8;
-            x = (j as f64) * WTAB[i];
-            if j < KTAB[i] {
-                break;
-            }
-            if i < 127 {
-                y = YTAB[i+i] + (YTAB[0] - YTAB[i+1]) * self.rand_uniform();
-            } else {
-                x = PARAM_R - (1.0 - self.rand_uniform()).ln() / PARAM_R;
-                y = (PARAM_R.neg() * (x - 0.5 * PARAM_R)).exp() * self.rand_uniform();
-            }
-            if y < (-0.5*x*x).exp() {
-                break;
-            }
-        }
-        if sign > 0 {x} else {x.neg()}
-    }
-
-    pub fn normal(&mut self, mu: f64, sigma: f64) -> f64 {
-        self.normal_standard()*sigma + mu
-    }
-}
-
-// constants for the ziggurat algorithm for standard normal
+const RAND_MAX: i64 = 2147483647;
+const RAND_MAX_HALF: i64 =  RAND_MAX / 2;
+const RAND_MAX_DOUBLE: i64 =  RAND_MAX * 2;
 
 // position of right-most step
 const PARAM_R: f64 = 3.44428647676;
 
 // tabulated values for the heigt of the Ziggurat levels
-const YTAB: [f64; 128] = [
-  1.0, 0.963598623011, 0.936280813353, 0.913041104253,
+const ytab: [f64; 128] = [
+  1, 0.963598623011, 0.936280813353, 0.913041104253,
   0.892278506696, 0.873239356919, 0.855496407634, 0.838778928349,
   0.822902083699, 0.807732738234, 0.793171045519, 0.779139726505,
   0.765577436082, 0.752434456248, 0.739669787677, 0.727249120285,
@@ -146,7 +44,7 @@ const YTAB: [f64; 128] = [
 
 /* tabulated values for 2^24 times x[i]/x[i+1],
  * used to accept for U*x[i+1]<=x[i] without any floating point operations */
-const KTAB: [u32; 128] = [
+const ktab: [i64; 128] = [
   0, 12590644, 14272653, 14988939,
   15384584, 15635009, 15807561, 15933577,
   16029594, 16105155, 16166147, 16216399,
@@ -182,7 +80,7 @@ const KTAB: [u32; 128] = [
 ];
 
 // tabulated values of 2^{-24}*x[i]
-const WTAB: [f64; 128] = [
+const wtab: [f64; 128] = [
   1.62318314817e-08, 2.16291505214e-08, 2.54246305087e-08, 2.84579525938e-08,
   3.10340022482e-08, 3.33011726243e-08, 3.53439060345e-08, 3.72152672658e-08,
   3.8950989572e-08, 4.05763964764e-08, 4.21101548915e-08, 4.35664624904e-08,
@@ -217,3 +115,6 @@ const WTAB: [f64; 128] = [
   1.83813550477e-07, 1.92166040885e-07, 2.05295471952e-07, 2.22600839893e-07
 ];
 
+fn main(){
+    println!("Hello, world")
+}
